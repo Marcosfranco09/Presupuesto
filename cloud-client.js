@@ -5,11 +5,15 @@
   let widgetId,token='';
   const configured=()=>drive?!!(config.appsScriptUrl&&(testing||config.recaptchaSiteKey)):!!(config.apiUrl&&config.turnstileSiteKey);
   function reset(){token='';const service=drive?window.grecaptcha:window.turnstile;if(widgetId!==undefined&&service)service.reset(widgetId);}
+  function requireReady(){
+    const testToken=testing?document.getElementById('driveTestCode')?.value.trim():'';
+    if(testing&&!testToken){const error=new Error('Ingresá el código de prueba de Drive antes de descargar.');error.fieldId='driveTestCode';throw error;}
+    if(!testing&&!token)throw new Error('Completá la verificación antes de descargar.');
+    return {testToken};
+  }
   async function send(quote,{bytes,filename}={}){
     if(!configured())throw new Error('La nube todavía no está conectada. Tu PDF puede descargarse igualmente.');
-    const testToken=testing?document.getElementById('driveTestCode')?.value.trim():'';
-    if(testing&&!testToken)throw new Error('Cerrá la vista previa e ingresá el código de prueba que aparece al ejecutar configurarPruebas en Google Apps Script.');
-    if(!testing&&!token)throw new Error('Cerrá la vista previa, completá la verificación y volvé a pulsar Descargar PDF para enviar la copia.');
+    const {testToken}=requireReady();
     if(drive){try{return await DriveClient.send({quote,bytes,filename,token,testMode:testing,testToken,url:config.appsScriptUrl});}finally{reset();}}
     const controller=new AbortController();const timeout=setTimeout(()=>controller.abort(),30000);
     try{
@@ -31,5 +35,5 @@
     script.onerror=()=>{document.getElementById('cloudHelp').textContent='No se pudo cargar la verificación para la nube. Podés descargar el PDF y reintentar luego.';};
     document.head.append(script);
   }
-  window.QuoteCloud={configured,send};
+  window.QuoteCloud={configured,requireReady,send};
 })();

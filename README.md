@@ -52,7 +52,9 @@ Los PDFs se consultan desde Cloudflare → R2 → `nostop-presupuestos` → `pre
 
 ## Guardado y reintentos
 
-El navegador genera el PDF y muestra un enlace de descarga para móviles que requieran un segundo toque. El navegador controla la ubicación final del archivo; el sitio no puede comprobar que el usuario lo haya guardado físicamente.
+Hay un único botón principal «Descargar PDF»: genera el archivo, inicia la descarga, guarda la copia en la nube y solicita el aviso al presupuestador. Si el navegador necesita un segundo toque, se pulsa el mismo botón; un presupuesto ya confirmado se vuelve a descargar sin enviar otro aviso. El resultado del guardado y correo se muestra junto al botón. El navegador controla la ubicación final del archivo; el sitio no puede comprobar que el usuario lo haya guardado físicamente.
+
+La vista previa solo permite revisar el presupuesto. No descarga ni envía; se cierra con la equis, con Escape o al pulsar fuera del cuadro.
 
 Cada envío tiene un identificador; repetir un envío idéntico conserva el mismo archivo. Cambiar los datos crea otro identificador. En Drive se guarda la copia PDF que descarga el cliente y un registro con importes recalculados desde el tarifario. En Cloudflare el Worker valida los datos, recalcula el tarifario y genera su propia copia del PDF.
 

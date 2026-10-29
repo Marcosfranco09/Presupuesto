@@ -109,12 +109,13 @@ test('test mode is capped at ten new submissions and production setup revokes te
 });
 test('browser test mode loads no captcha script and passes the entered code only with the upload',async()=>{
   const elements={cloudChallenge:{append(){}},cloudHelp:{textContent:''}},created=[];
-  const document={getElementById:id=>elements[id],createElement:tag=>{created.push(tag);return {append(input){elements[input.id]=input;}};}};
+  const document={getElementById:id=>elements[id],createElement:tag=>{created.push(tag);return {value:'',append(input){elements[input.id]=input;}};}};
   let uploaded;
   const window={QUOTE_CLOUD:{provider:'drive',testMode:true,appsScriptUrl:'https://script.google.com/macros/s/EXAMPLE/exec'}};
   const context=vm.createContext({window,document,DriveClient:{send:async input=>{uploaded=input;return {stored:true};}}});
   vm.runInContext(fs.readFileSync('cloud-client.js','utf8'),context);
   assert.equal(window.QuoteCloud.configured(),true);assert.ok(!created.includes('script'));
+  assert.throws(()=>window.QuoteCloud.requireReady(),/Ingresá el código de prueba/);
   assert.equal(elements.driveTestCode.type,'password');elements.driveTestCode.value='test-only-code';
   await window.QuoteCloud.send({id:'NS-TEST1234'},{bytes:new Uint8Array([1]),filename:'test.pdf'});
   assert.equal(uploaded.testMode,true);assert.equal(uploaded.testToken,'test-only-code');assert.equal(uploaded.token,'');

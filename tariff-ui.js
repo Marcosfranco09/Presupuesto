@@ -33,10 +33,14 @@ $('reels').addEventListener('input',event=>{
   }
 });
 $('quoteForm').addEventListener('input',update);$('quoteForm').addEventListener('change',update);
-function openPreview(){
+function validResult(){
   if(!$('quoteForm').reportValidity())return false;
   const result=Tariff.calculate(readInput());
   if(result.error||!result.lines.length){$('status').textContent=result.error||'Elegí al menos un servicio.';return false;}
+  return result;
+}
+function openPreview(){
+  const result=validResult();if(!result)return false;
   quoteId||='NS-'+crypto.randomUUID().slice(0,8).toUpperCase();
   $('docMeta').textContent=quoteId+' · '+new Date().toLocaleDateString('es-PY');$('docTitle').textContent=$('projectName').textContent;
   $('docClient').textContent=[$('name').value,$('email').value,$('company').value].filter(Boolean).join(' · ');
@@ -44,7 +48,7 @@ function openPreview(){
   renderRows($('documentRows'),breakdown(result));
   $('docTotal').textContent=$('totalLabel').textContent+': '+money(result.total);
   $('docNotes').textContent=[$('quoteState').textContent,$('deposit').textContent,$('extraRate').textContent,$('notes').value.replace(/\s+/g,' ').trim()].filter(Boolean).join('\n\n');
-  $('document').showModal();fitQuoteToPage();return result;
+  if(!$('document').open)$('document').showModal();fitQuoteToPage();return result;
 }
 // Measure the same print layout used by the browser, at the usable A4 width.
 // Compact spacing first, then type. Scaling is a final safeguard, never clipping.
@@ -71,41 +75,59 @@ function fitQuoteToPage(){
 addEventListener('beforeprint',fitQuoteToPage);
 $('preview').addEventListener('click',openPreview);
 $('closePreview').addEventListener('click',()=>$('document').close());
-$('print').addEventListener('click',()=>$('quoteForm').requestSubmit());
-let snapshot,fingerprint='',lastDownload='',downloadUrl;
+const previewDialog=$('document');
+function outsidePreview(event){const rect=previewDialog.getBoundingClientRect();return event.clientX<rect.left||event.clientX>rect.right||event.clientY<rect.top||event.clientY>rect.bottom;}
+let backdropPress=false;
+previewDialog.addEventListener('pointerdown',event=>{backdropPress=event.target===previewDialog&&outsidePreview(event);});
+previewDialog.addEventListener('click',event=>{if(backdropPress&&event.target===previewDialog&&outsidePreview(event))previewDialog.close();backdropPress=false;});
+previewDialog.addEventListener('close',()=>{backdropPress=false;});
+let snapshot,fingerprint='',downloadUrl,pdfBytes,cloudConfirmation;
 let saving=false;
-function setSaveStatus(message){$('status').textContent=message;$('documentStatus').textContent=message;}
+function setSaveStatus(message,state='info'){$('status').textContent=message;$('status').dataset.state=state;}
+function downloadPdf(quote){
+  // This transient anchor is never shown as an additional download control.
+  const link=document.createElement('a');link.href=downloadUrl;link.download=QuotePdf.filename(quote);link.hidden=true;
+  document.body.append(link);link.click();link.remove();
+}
 async function saveQuote(event){
   event.preventDefault();if(saving)return;
-  const result=openPreview();if(!result)return;
+  const result=validResult();if(!result)return;
+  quoteId||='NS-'+crypto.randomUUID().slice(0,8).toUpperCase();
   const data={client:{name:$('name').value.trim(),email:$('email').value.trim(),company:$('company').value.trim()},event:{...readInput(),date:$('eventDate').value,location:$('location').value.trim(),name:$('project').value.trim(),notes:$('notes').value.trim()},result};
   const current=JSON.stringify(data);
   if(!snapshot||current!==fingerprint){
     if(snapshot)quoteId='NS-'+crypto.randomUUID().slice(0,8).toUpperCase();
     snapshot={...data,submissionId:crypto.randomUUID(),id:quoteId,createdAt:new Date().toISOString(),tariffVersion:'2026-v4'};
     fingerprint=current;
-    $('docMeta').textContent=quoteId+' · '+new Date().toLocaleDateString('es-PY');
+    pdfBytes=null;cloudConfirmation=null;
   }
   const quote=snapshot;
-  saving=true;document.querySelectorAll('[form="quoteForm"],#print').forEach(button=>{button.disabled=true;});
+  const connected=QuoteCloud.configured();
+  if(connected&&!cloudConfirmation){
+    try{QuoteCloud.requireReady();}catch(error){setSaveStatus(error.message,'error');if(error.fieldId)$(error.fieldId)?.focus();return;}
+  }
+  const button=$('downloadPdf');
+  saving=true;button.disabled=true;$('preview').disabled=true;$('quoteForm').setAttribute('aria-busy','true');
+  button.textContent='Preparando PDF…';
   setSaveStatus('Preparando tu PDF…');
+  let downloaded=false;
   try{
-    const logoResponse=await fetch('assets/logo.png');if(!logoResponse.ok)throw new Error('No se pudo cargar el logo. Volvé a intentar.');
-    const bytes=await QuotePdf.create(quote,result,await logoResponse.arrayBuffer());
-    if(downloadUrl)URL.revokeObjectURL(downloadUrl);
-    downloadUrl=URL.createObjectURL(new Blob([bytes],{type:'application/pdf'}));
-    const links=[...document.querySelectorAll('[data-download-pdf]')];
-    for(const link of links){link.href=downloadUrl;link.download=QuotePdf.filename(quote);link.hidden=false;}
-    if(lastDownload!==quote.submissionId){(links.find(link=>link.closest('dialog'))||links[0]).click();lastDownload=quote.submissionId;}
-    if(!QuoteCloud.configured()){
-      setSaveStatus('PDF listo para guardar. La nube y los avisos por correo todavía no están conectados. Usá «Descargar PDF» si no comenzó la descarga.');
+    if(!pdfBytes){
+      const logoResponse=await fetch('assets/logo.png');if(!logoResponse.ok)throw new Error('No se pudo cargar el logo. Volvé a intentar.');
+      pdfBytes=await QuotePdf.create(quote,result,await logoResponse.arrayBuffer());
+      if(downloadUrl)URL.revokeObjectURL(downloadUrl);
+      downloadUrl=URL.createObjectURL(new Blob([pdfBytes],{type:'application/pdf'}));
+    }
+    downloadPdf(quote);downloaded=true;
+    if(!connected){
+      setSaveStatus('Descarga iniciada. Drive y los avisos por correo todavía no están conectados. Si no se descargó el PDF, pulsá nuevamente el mismo botón.');
       return;
     }
-    setSaveStatus('PDF listo. Guardando la copia en la nube…');
-    const saved=await QuoteCloud.send(quote,{bytes,filename:QuotePdf.filename(quote)});
-    setSaveStatus(saved.notification==='sent'?'Copia guardada en la nube. Aviso enviado al presupuestador.':'Copia guardada en la nube. El aviso por correo está pendiente y se reintentará automáticamente.');
-  }catch(error){setSaveStatus('No se completó el guardado: '+(error.name==='AbortError'?'se agotó el tiempo de espera. Conservá el PDF y volvé a pulsar Descargar PDF para reintentar.':error.message));}
-  finally{saving=false;document.querySelectorAll('[form="quoteForm"],#print').forEach(button=>{button.disabled=false;});}
+    button.textContent='Enviando copia…';setSaveStatus('Descarga iniciada. Guardando la copia y enviando el aviso…');
+    cloudConfirmation||=await QuoteCloud.send(quote,{bytes:pdfBytes,filename:QuotePdf.filename(quote)});
+    setSaveStatus(cloudConfirmation.notification==='sent'?'Descarga iniciada. Copia guardada en la nube y aviso enviado al presupuestador.':'Descarga iniciada. Copia guardada en la nube; el aviso por correo está pendiente y se reintentará automáticamente.','success');
+  }catch(error){setSaveStatus((downloaded?'Descarga iniciada, pero no se pudo confirmar el envío. ':'No se pudo preparar el PDF. ')+(error.name==='AbortError'?'Se agotó el tiempo de espera.':error.message)+' Pulsá nuevamente Descargar PDF para reintentar.','error');}
+  finally{saving=false;button.disabled=false;button.textContent='Descargar PDF';$('preview').disabled=false;$('quoteForm').removeAttribute('aria-busy');}
 }
 $('quoteForm').addEventListener('submit',saveQuote);
 $('docConditions').textContent=conditions;
