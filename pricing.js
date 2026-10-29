@@ -17,8 +17,8 @@
   const products = [
     {id:'prints',name:'Fotografías impresas',hint:'Según tamaño y cantidad'},
     {id:'enlargements',name:'Ampliaciones fotográficas',hint:'Según medida'},
-    {id:'album',name:'Álbum fotográfico personalizado',hint:'Desde Gs. 500.000'},
-    {id:'book',name:'Fotolibro premium',hint:'Desde Gs. 900.000'},
+    {id:'album',name:'Álbum fotográfico personalizado',hint:'Desde Gs. 500.000',price:500000,approximate:true},
+    {id:'book',name:'Fotolibro premium',hint:'Desde Gs. 900.000',price:900000,approximate:true},
     {id:'travel',name:'Traslado del equipo',hint:'Según ubicación y recorrido'}
   ];
   function calculate(input) {
@@ -30,22 +30,27 @@
     for(const id of ['photo','video']) if(input[id]) {
       const hours=Number(input[id+'Hours']);
       if(!Number.isInteger(hours)||hours<2||hours>24)return {error:'La cobertura debe durar entre 2 y 24 horas enteras.'};
-      lines.push({id,name:(id==='photo'?'Cobertura fotográfica':'Cobertura de video')+` · ${hours} h`,price:special||hours>4?null:tier.prices[hours-2],hint:special||hours>4?'Propuesta específica según cronograma':tier.label});
+      const extraHours=Math.max(0,hours-4);
+      const price=hours<=4?tier.prices[hours-2]:tier.prices[2]+extraHours*tier.extra;
+      const hourDetail=extraHours?` · 4 h + ${extraHours} h adicional(es) a Gs. ${new Intl.NumberFormat('es-PY').format(tier.extra)}/h`:'';
+      lines.push({id,name:(id==='photo'?'Cobertura fotográfica':'Cobertura de video')+` · ${hours} h`,price:special?null:price,hint:special?'Propuesta específica según cronograma':tier.label+hourDetail});
     }
     for(const extra of extras) if(input.extras.includes(extra.id)&&(!extra.requires||input[extra.requires]))lines.push({...extra});
     if(input.reels>0) {
       if(![1,2,3].includes(Number(input.reels)))return {error:'Seleccioná un pack de Reels válido.'};
       lines.push({id:'reels',name:input.reels+' Reel(s) editado(s)',price:[650000,900000,1300000][input.reels-1]});
     }
-    for(const product of products)if(input.products.includes(product.id))lines.push({...product,price:null,excluded:true});
+    for(const product of products)if(input.products.includes(product.id))lines.push({...product,price:product.price??null,excluded:true});
     const count=lines.filter(l=>!l.excluded).length;
     const rate=count>=3?.1:count===2?.05:0;
     const subtotal=lines.reduce((sum,l)=>sum+(l.price??0),0);
     const eligible=lines.filter(l=>!l.excluded).reduce((sum,l)=>sum+(l.price??0),0);
     const discount=Math.round(eligible*rate);
     const pending=special||lines.some(l=>l.price===null);
-    return {lines,tier:tier.label,extraHour:tier.extra,subtotal,discount,rate,total:subtotal-discount,deposit:pending?null:Math.round((subtotal-discount)/2),pending,special,count};
+    const approximate=lines.some(l=>l.approximate);
+    return {lines,tier:tier.label,extraHour:tier.extra,subtotal,discount,rate,total:subtotal-discount,deposit:pending?null:Math.round((subtotal-discount)/2),pending,approximate,special,count};
   }
-  const api={calculate,extras,products};
+  function totalLabel(result){return result.approximate?'Precio final APROXIMADO, sin IVA':result.pending?'Importe parcial conocido, sin IVA':'Total estimado, sin IVA';}
+  const api={calculate,extras,products,totalLabel};
   if(typeof module!=='undefined')module.exports=api;else root.Tariff=api;
 })(globalThis);

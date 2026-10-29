@@ -1,26 +1,37 @@
 const $ = id => document.getElementById(id);
 const money = value => 'Gs. '+new Intl.NumberFormat('es-PY').format(value);
-const conditions='Tarifario 2026 v4. Precios sin IVA, sujetos a negociación, confirmación de fecha y disponibilidad. Reserva con 50% de seña; saldo hasta el día del evento. Las horas se cuentan desde la llegada del equipo. Si aumenta el rango final de invitados, se ajusta la tarifa. Bodas, XV años y coberturas de más de 4 horas requieren propuesta específica. Productos y traslados se confirman según especificaciones.';
+const conditions='Tarifario 2026 v4. Precios sin IVA, sujetos a negociación, confirmación de fecha y disponibilidad. Reserva con 50% de seña; saldo hasta el día del evento. Las horas se cuentan desde la llegada del equipo. Si aumenta el rango final de invitados, se ajusta la tarifa. Desde la quinta hora se suma la tarifa por hora adicional del rango, para cada cobertura. Bodas y XV años requieren propuesta específica. Productos y traslados se confirman según especificaciones.';
 let quoteId='';
 function choices(container,items){for(const item of items){const label=document.createElement('label');label.className='service';const check=document.createElement('input');check.type='checkbox';check.value=item.id;const span=document.createElement('span');const strong=document.createElement('strong');strong.textContent=item.name;const small=document.createElement('small');small.textContent=item.hint||money(item.price);span.append(strong,small);label.append(check,span);container.append(label);}}
 choices($('extras'),Tariff.extras);choices($('products'),Tariff.products);
 function checked(id){return [...$(id).querySelectorAll('input:checked')].map(e=>e.value);}
-function readInput(){return {type:$('eventType').value,guests:Number($('guests').value),photo:$('photo').checked,video:$('video').checked,photoHours:Number($('photoHours').value),videoHours:Number($('videoHours').value),extras:checked('extras'),products:checked('products'),reels:Number($('reels').value)};}
+function readInput(){return {type:$('eventType').value,guests:Number($('guests').value),photo:$('photo').checked,video:$('video').checked,photoHours:Number($('photoHours').value),videoHours:Number($('videoHours').value),extras:checked('extras'),products:checked('products'),reels:Number(checked('reels')[0]||0)};}
 function renderRows(container,lines){container.replaceChildren();for(const line of lines){const row=document.createElement('div');row.className='line-item';const label=document.createElement('span');label.textContent=line.name+(line.hint?' — '+line.hint:'');const price=document.createElement('span');price.textContent=line.price===null?'A cotizar':money(line.price);row.append(label,price);container.append(row);}}
-function breakdown(result){const lines=[...result.lines,{name:'Subtotal conocido, sin IVA',price:result.subtotal}];if(result.discount)lines.push({name:`Descuento por combinación (${result.rate*100}%)`,price:-result.discount});return lines;}
+function breakdown(result){const lines=[...result.lines,{name:'Subtotal, sin IVA',price:result.subtotal}];if(result.discount)lines.push({name:`Descuento por combinación (${result.rate*100}%)`,price:-result.discount});return lines;}
 function update(){
-  for(const id of ['photo','video'])$(''+id+'Hours').disabled=!$(id).checked;
+  for(const id of ['photo','video']){
+    const slider=$(id+'Hours');
+    slider.disabled=!$(id).checked;
+    $(id+'HoursValue').textContent=slider.value+' h';
+    slider.setAttribute('aria-valuetext',slider.value+' horas');
+  }
   for(const extra of Tariff.extras){const check=$('extras').querySelector(`input[value="${extra.id}"]`);check.disabled=!!extra.requires&&!$(extra.requires).checked;if(check.disabled)check.checked=false;}
   const result=Tariff.calculate(readInput());
   $('status').textContent='';$('projectName').textContent=$('project').value.trim()||$('eventType').value;
   if(result.error){$('rows').replaceChildren();$('total').textContent='—';$('quoteState').textContent=result.error;$('deposit').textContent='';return;}
-  renderRows($('rows'),breakdown(result));
-  $('totalLabel').textContent=result.pending?'Importe parcial conocido, sin IVA':'Total estimado, sin IVA';
+  renderRows($('rows'),result.lines.length ? breakdown(result) : []);
+  $('totalLabel').textContent=Tariff.totalLabel(result);
   $('total').textContent=result.lines.length?money(result.total):'—';
-  $('quoteState').textContent=result.pending?'Requiere cotización personalizada. Los conceptos a cotizar no están incluidos en el importe parcial.':result.lines.length?'Presupuesto calculado, sujeto a confirmación.':'Elegí al menos un servicio.';
+  const approximation=result.approximate?'Se incluyen los precios iniciales de los productos “desde”. El precio final puede variar según las especificaciones. ':'';
+  $('quoteState').textContent=approximation+(result.pending?'Los conceptos sin precio definido siguen a cotizar y no están incluidos en el importe mostrado.':result.lines.length?'Presupuesto calculado, sujeto a confirmación.':'Elegí al menos un servicio.');
   $('deposit').textContent=result.pending?'Seña pendiente del presupuesto completo.':result.lines.length?'Seña estimada (50%, sin IVA): '+money(result.deposit):'';
-  $('extraRate').textContent='Hora excedida de cobertura: '+money(result.extraHour)+' por servicio. Las fracciones de hora requieren confirmación.';
+  $('extraRate').textContent='Desde la quinta hora: '+money(result.extraHour)+' por hora adicional, para cada cobertura. Las fracciones de hora requieren confirmación.';
 }
+$('reels').addEventListener('input',event=>{
+  if(event.target.matches('input:checked')){
+    $('reels').querySelectorAll('input').forEach(input=>{if(input!==event.target)input.checked=false;});
+  }
+});
 $('quoteForm').addEventListener('input',update);$('quoteForm').addEventListener('change',update);
 function openPreview(){
   if(!$('quoteForm').reportValidity())return false;
@@ -32,10 +43,70 @@ function openPreview(){
   $('docEvent').textContent=`${$('eventType').value} · ${$('eventDate').value} · ${$('location').value} · ${$('guests').value} invitados`;
   renderRows($('documentRows'),breakdown(result));
   $('docTotal').textContent=$('totalLabel').textContent+': '+money(result.total);
-  $('docNotes').textContent=[$('quoteState').textContent,$('deposit').textContent,$('extraRate').textContent,$('notes').value].filter(Boolean).join('\n\n');
-  $('document').showModal();return result;
+  $('docNotes').textContent=[$('quoteState').textContent,$('deposit').textContent,$('extraRate').textContent,$('notes').value.replace(/\s+/g,' ').trim()].filter(Boolean).join('\n\n');
+  $('document').showModal();fitQuoteToPage();return result;
 }
-$('preview').addEventListener('click',openPreview);$('closePreview').addEventListener('click',()=>$('document').close());$('print').addEventListener('click',()=>window.print());
-$('quoteForm').addEventListener('submit',event=>{event.preventDefault();const result=openPreview();if(!result)return;const quote={id:quoteId,createdAt:new Date().toISOString(),tariffVersion:'2026-v4',client:{name:$('name').value,email:$('email').value,company:$('company').value},event:{...readInput(),date:$('eventDate').value,location:$('location').value,name:$('project').value,notes:$('notes').value},result,conditions};try{localStorage.setItem('nostop-last-quote',JSON.stringify(quote));$('status').textContent='Guardado en este navegador. No se envió a la nube.';}catch{$('status').textContent='No se pudo guardar en el navegador. Podés guardar el PDF.';}window.print();});
+// Measure the same print layout used by the browser, at the usable A4 width.
+// Compact spacing first, then type. Scaling is a final safeguard, never clipping.
+function fitQuoteToPage(){
+  const sheet=document.querySelector('#document .quote-sheet');
+  if(!sheet)return;
+  const measure=sheet.cloneNode(true);
+  measure.classList.add('print-layout','print-measure');
+  measure.style.setProperty('display','block','important');
+  measure.style.setProperty('--print-scale','1');
+  document.body.append(measure);
+  const maxHeight=271*96/25.4; // A4 minus 12 mm margins and 2 mm rounding reserve.
+  let density=0;
+  for(;density<3;density++){
+    measure.dataset.density=String(density);
+    if(measure.getBoundingClientRect().height<=maxHeight)break;
+  }
+  measure.dataset.density=String(density);
+  const height=measure.getBoundingClientRect().height;
+  sheet.dataset.density=String(density);
+  sheet.style.setProperty('--print-scale',String(Math.min(1,maxHeight/Math.max(1,height))));
+  measure.remove();
+}
+addEventListener('beforeprint',fitQuoteToPage);
+$('preview').addEventListener('click',openPreview);
+$('closePreview').addEventListener('click',()=>$('document').close());
+$('print').addEventListener('click',()=>$('quoteForm').requestSubmit());
+let snapshot,fingerprint='',lastDownload='',downloadUrl;
+let saving=false;
+function setSaveStatus(message){$('status').textContent=message;$('documentStatus').textContent=message;}
+async function saveQuote(event){
+  event.preventDefault();if(saving)return;
+  const result=openPreview();if(!result)return;
+  const data={client:{name:$('name').value.trim(),email:$('email').value.trim(),company:$('company').value.trim()},event:{...readInput(),date:$('eventDate').value,location:$('location').value.trim(),name:$('project').value.trim(),notes:$('notes').value.trim()},result};
+  const current=JSON.stringify(data);
+  if(!snapshot||current!==fingerprint){
+    if(snapshot)quoteId='NS-'+crypto.randomUUID().slice(0,8).toUpperCase();
+    snapshot={...data,submissionId:crypto.randomUUID(),id:quoteId,createdAt:new Date().toISOString(),tariffVersion:'2026-v4'};
+    fingerprint=current;
+    $('docMeta').textContent=quoteId+' · '+new Date().toLocaleDateString('es-PY');
+  }
+  const quote=snapshot;
+  saving=true;document.querySelectorAll('[form="quoteForm"],#print').forEach(button=>{button.disabled=true;});
+  setSaveStatus('Preparando tu PDF…');
+  try{
+    const logoResponse=await fetch('assets/logo.png');if(!logoResponse.ok)throw new Error('No se pudo cargar el logo. Volvé a intentar.');
+    const bytes=await QuotePdf.create(quote,result,await logoResponse.arrayBuffer());
+    if(downloadUrl)URL.revokeObjectURL(downloadUrl);
+    downloadUrl=URL.createObjectURL(new Blob([bytes],{type:'application/pdf'}));
+    const links=[...document.querySelectorAll('[data-download-pdf]')];
+    for(const link of links){link.href=downloadUrl;link.download=QuotePdf.filename(quote);link.hidden=false;}
+    if(lastDownload!==quote.submissionId){(links.find(link=>link.closest('dialog'))||links[0]).click();lastDownload=quote.submissionId;}
+    if(!QuoteCloud.configured()){
+      setSaveStatus('PDF listo para guardar. La nube y los avisos por correo todavía no están conectados. Usá «Descargar PDF» si no comenzó la descarga.');
+      return;
+    }
+    setSaveStatus('PDF listo. Guardando la copia en la nube…');
+    const saved=await QuoteCloud.send(quote,{bytes,filename:QuotePdf.filename(quote)});
+    setSaveStatus(saved.notification==='sent'?'Copia guardada en la nube. Aviso enviado al presupuestador.':'Copia guardada en la nube. El aviso por correo está pendiente y se reintentará automáticamente.');
+  }catch(error){setSaveStatus('No se completó el guardado: '+(error.name==='AbortError'?'se agotó el tiempo de espera. Conservá el PDF y volvé a pulsar Descargar PDF para reintentar.':error.message));}
+  finally{saving=false;document.querySelectorAll('[form="quoteForm"],#print').forEach(button=>{button.disabled=false;});}
+}
+$('quoteForm').addEventListener('submit',saveQuote);
 $('docConditions').textContent=conditions;
 update();

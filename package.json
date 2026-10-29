@@ -1,0 +1,19 @@
+{
+  "name": "nostop-presupuesto",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "start": "node server.cjs",
+    "test": "node pricing.test.cjs && npm run prepare:drive && node --test cloud.test.cjs drive.test.cjs",
+    "prepare:site": "node scripts/prepare-site.cjs",
+    "dev:cloud": "npm run prepare:site && wrangler dev",
+    "deploy": "npm run prepare:site && wrangler deploy",
+    "prepare:drive": "node scripts/prepare-drive.cjs"
+  },
+  "dependencies": {
+    "pdf-lib": "1.17.1"
+  },
+  "devDependencies": {
+    "wrangler": "^4.0.0"
+  }
+}

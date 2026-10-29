@@ -1,0 +1,11 @@
+const fs=require('node:fs');
+const path=require('node:path');
+const root=path.resolve(__dirname,'..');
+const pricing=fs.readFileSync(path.join(root,'pricing.js'),'utf8');
+const start=pricing.indexOf('  const tiers');const end=pricing.indexOf('  const api=');
+if(start<0||end<0)throw new Error('No se pudo preparar el tarifario de Apps Script.');
+const tariff='var Tariff=(function(){\n'+pricing.slice(start,end)+'\nreturn {calculate:calculate,extras:extras,products:products,totalLabel:totalLabel};\n})();\n';
+const validation=fs.readFileSync(path.join(root,'quote-validation.cjs'),'utf8').replace("const Pricing=require('./pricing.js');",'var Pricing=Tariff;').replace('function validate(payload)','function validateGoogleQuote_(payload)').replace('module.exports={validate};','');
+const backend=fs.readFileSync(path.join(root,'google-drive/Backend.gs'),'utf8');
+fs.writeFileSync(path.join(root,'google-drive/Code.gs'), '// AUTO-GENERATED: npm run prepare:drive\n'+tariff+'\n'+validation+'\n'+backend);
+console.log('google-drive/Code.gs preparado con el tarifario actual y la carpeta indicada.');

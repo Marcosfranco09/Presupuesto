@@ -1,0 +1,14 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "presupuesto-nostop",
+  "main": "worker.mjs",
+  "compatibility_date": "2026-10-29",
+  "assets": { "directory": "./dist", "binding": "ASSETS", "run_worker_first": ["/api/*"] },
+  "r2_buckets": [{ "binding": "QUOTES", "bucket_name": "nostop-presupuestos" }],
+  "vars": {
+    "NOTIFY_TO": "robfranco97@gmail.com",
+    "ALLOWED_ORIGINS": "https://marcosfranco09.github.io",
+    "MAIL_FROM": ""
+  },
+  "triggers": { "crons": ["*/10 * * * *"] }
+}
