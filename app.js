@@ -9,7 +9,14 @@ document.body.append(traveler);
 const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
 let origin;
 let scrollFrame = 0;
+function updateSummaryDock() {
+  const height = summaryCard.getBoundingClientRect().height;
+  const canDock = matchMedia('(min-width: 801px)').matches && height <= innerHeight - 32;
+  summaryCard.style.setProperty('--summary-top', `${Math.max(16, (innerHeight - height) / 2)}px`);
+  summaryCard.classList.toggle('summary-docked', canDock);
+}
 function measureAstronaut() {
+  updateSummaryDock();
   const rect = astronautSource.getBoundingClientRect();
   origin = {x: rect.left + rect.width / 2, y: rect.top + scrollY + rect.height / 2, width: rect.width};
   positionAstronaut();
