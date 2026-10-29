@@ -96,7 +96,7 @@ El script tiene un límite propio de 50 nuevos presupuestos por día en modo pú
 
 La página confirma el guardado mediante una respuesta del script correlacionada al envío. No se usa una solicitud `no-cors` que declare éxito sin poder leer la respuesta. La confirmación entre GitHub Pages y Google debe verificarse en la prueba real de publicación; si el navegador o la cuenta impiden la respuesta, se muestra un error o tiempo de espera, nunca éxito supuesto.
 
-Al modificar el tarifario ejecutá `npm run prepare:drive`, copiá de nuevo Code.gs al proyecto y actualizá la implementación con una nueva versión.
+Al modificar el tarifario o los campos del cliente ejecutá `npm run prepare:drive`, copiá de nuevo Code.gs al proyecto y actualizá la implementación existente con una nueva versión. Esto incluye el campo WhatsApp del cliente. No es necesario ejecutar configurarPruebas para actualizar el código; hacerlo generaría un nuevo código temporal.
 
 ## Referencias
 

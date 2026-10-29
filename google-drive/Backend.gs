@@ -47,6 +47,7 @@ function notify_(record,recordFile){
   var body=[
     'Hay un nuevo presupuesto de '+record.quote.client.name+'.',
     'Número: '+record.quote.id,
+    'WhatsApp: '+(record.quote.client.whatsapp||'No informado'),
     'Evento: '+record.quote.event.type+' · '+record.quote.event.date,
     Tariff.totalLabel(result)+': Gs. '+new Intl.NumberFormat('es-PY').format(result.total),
     result.pending?'Hay conceptos sin precio definido que no se incluyen en el importe mostrado.':'',

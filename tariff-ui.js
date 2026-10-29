@@ -34,6 +34,8 @@ $('reels').addEventListener('input',event=>{
 });
 $('quoteForm').addEventListener('input',update);$('quoteForm').addEventListener('change',update);
 function validResult(){
+  const phone=$('whatsapp').value.trim(),digits=phone.replace(/\D/g,'');
+  $('whatsapp').setCustomValidity(phone&&(!/^\+?[\d\s().-]+$/.test(phone)||digits.length<7||digits.length>15)?'Ingresá un WhatsApp válido, con código de país y entre 7 y 15 dígitos.':'');
   if(!$('quoteForm').reportValidity())return false;
   const result=Tariff.calculate(readInput());
   if(result.error||!result.lines.length){$('status').textContent=result.error||'Elegí al menos un servicio.';return false;}
@@ -44,6 +46,7 @@ function openPreview(){
   quoteId||='NS-'+crypto.randomUUID().slice(0,8).toUpperCase();
   $('docMeta').textContent=quoteId+' · '+new Date().toLocaleDateString('es-PY');$('docTitle').textContent=$('projectName').textContent;
   $('docClient').textContent=[$('name').value,$('email').value,$('company').value].filter(Boolean).join(' · ');
+  $('docWhatsapp').textContent=$('whatsapp').value.trim()?'WhatsApp: '+$('whatsapp').value.trim():'';
   $('docEvent').textContent=`${$('eventType').value} · ${$('eventDate').value} · ${$('location').value} · ${$('guests').value} invitados`;
   renderRows($('documentRows'),breakdown(result));
   $('docTotal').textContent=$('totalLabel').textContent+': '+money(result.total);
@@ -93,7 +96,7 @@ async function saveQuote(event){
   event.preventDefault();if(saving)return;
   const result=validResult();if(!result)return;
   quoteId||='NS-'+crypto.randomUUID().slice(0,8).toUpperCase();
-  const data={client:{name:$('name').value.trim(),email:$('email').value.trim(),company:$('company').value.trim()},event:{...readInput(),date:$('eventDate').value,location:$('location').value.trim(),name:$('project').value.trim(),notes:$('notes').value.trim()},result};
+  const data={client:{name:$('name').value.trim(),email:$('email').value.trim(),whatsapp:$('whatsapp').value.trim(),company:$('company').value.trim()},event:{...readInput(),date:$('eventDate').value,location:$('location').value.trim(),name:$('project').value.trim(),notes:$('notes').value.trim()},result};
   const current=JSON.stringify(data);
   if(!snapshot||current!==fingerprint){
     if(snapshot)quoteId='NS-'+crypto.randomUUID().slice(0,8).toUpperCase();

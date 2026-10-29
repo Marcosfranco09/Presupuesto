@@ -7,8 +7,8 @@
     {max:Infinity,label:'Más de 400 invitados',prices:[4350000,5400000,6500000],extra:1100000}
   ];
   const extras = [
+    {id:'drive',name:'Cobertura en tiempo real (entrega de fotografías al instante durante el evento)',price:900000,requires:'photo'},
     {id:'vertical',name:'Video resumen vertical para redes',price:500000,requires:'video'},
-    {id:'drive',name:'Selección, edición y publicación de fotos en Drive durante el evento',price:900000,requires:'photo'},
     {id:'urgent',name:'Entrega prioritaria de selección (24 h)',price:400000,requires:'photo',excluded:true},
     {id:'stories',name:'Cobertura de Stories durante el evento',price:400000},
     {id:'raw',name:'Grabación vertical sin edición',price:400000},

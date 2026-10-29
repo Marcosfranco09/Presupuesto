@@ -12,7 +12,7 @@ async function notify(env,job,fetcher=fetch){
   const response=await fetcher('https://api.resend.com/emails',{
     method:'POST',headers:{Authorization:'Bearer '+env.RESEND_API_KEY,'Content-Type':'application/json','Idempotency-Key':'quote/'+job.quote.submissionId},
     body:JSON.stringify({from:env.MAIL_FROM,to:[env.NOTIFY_TO],subject:'Nuevo presupuesto: '+job.quote.client.name,
-      text:[`Hay un nuevo presupuesto de ${job.quote.client.name}.`,`Número: ${job.quote.id}`,`Evento: ${job.quote.event.type} · ${job.quote.event.date}`,`${Pricing.totalLabel(result)}: Gs. ${new Intl.NumberFormat('es-PY').format(result.total)}`,result.pending?'Hay conceptos a cotizar que no están incluidos en el importe mostrado.':'',`Archivo: ${job.filename}`,`Ubicación privada en R2: ${job.pdfKey}`,'Consultá el PDF en tu cuenta de Cloudflare → R2 → nostop-presupuestos.','El cliente no recibió este correo.'].filter(Boolean).join('\n')})
+      text:[`Hay un nuevo presupuesto de ${job.quote.client.name}.`,`Número: ${job.quote.id}`,`WhatsApp: ${job.quote.client.whatsapp||'No informado'}`,`Evento: ${job.quote.event.type} · ${job.quote.event.date}`,`${Pricing.totalLabel(result)}: Gs. ${new Intl.NumberFormat('es-PY').format(result.total)}`,result.pending?'Hay conceptos a cotizar que no están incluidos en el importe mostrado.':'',`Archivo: ${job.filename}`,`Ubicación privada en R2: ${job.pdfKey}`,'Consultá el PDF en tu cuenta de Cloudflare → R2 → nostop-presupuestos.','El cliente no recibió este correo.'].filter(Boolean).join('\n')})
   });
   if(!response.ok)throw new Error('MAIL_PROVIDER_FAILED');
   const confirmation=await response.json();

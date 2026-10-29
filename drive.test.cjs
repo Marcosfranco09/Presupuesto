@@ -6,7 +6,7 @@ const crypto=require('node:crypto');
 const DriveClient=require('./drive-client.js');
 const Pdf=require('./quote-pdf.js');
 const Pricing=require('./pricing.js');
-function fixture(){return {submissionId:'8b1c03da-dccf-41ea-bb2b-f75c96b5cc21',id:'NS-TEST1234',createdAt:'2026-10-29T15:00:00Z',client:{name:'María González',email:'demo@example.com',company:''},event:{type:'Evento corporativo',date:'2026-12-15',guests:60,location:'Asunción',name:'Prueba',notes:'',photo:true,video:false,photoHours:5,videoHours:2,reels:0,extras:[],products:['album']}};}
+function fixture(){return {submissionId:'8b1c03da-dccf-41ea-bb2b-f75c96b5cc21',id:'NS-TEST1234',createdAt:'2026-10-29T15:00:00Z',client:{name:'María González',email:'demo@example.com',whatsapp:'+595 981 123 456',company:''},event:{type:'Evento corporativo',date:'2026-12-15',guests:60,location:'Asunción',name:'Prueba',notes:'',photo:true,video:false,photoHours:5,videoHours:2,reels:0,extras:[],products:['album']}};}
 function iterator(items){let index=0;return {hasNext:()=>index<items.length,next:()=>items[index++]};}
 class File{
   constructor(name,data,mime='application/pdf'){this.name=name;this.data=data;this.mime=mime;this.id=crypto.randomUUID();this.access='private';}
@@ -48,6 +48,7 @@ test('Drive stores the exact downloaded PDF and sends only one owner notificatio
   assert.equal(env.mails.length,1);assert.equal(env.mails[0].to,'robfranco97@gmail.com');
   assert.ok(env.mails[0].body.includes('https://drive.google.com/file/d/'));
   assert.ok(env.mails[0].body.includes('Precio final APROXIMADO'));
+  assert.ok(env.mails[0].body.includes('WhatsApp: +595 981 123 456'));
   assert.ok(!post(env,data).includes('https://drive.google.com/file/d/'));
 });
 test('Drive rejects invalid origins, captcha, data and changed payloads with same id',async()=>{
@@ -71,6 +72,7 @@ test('Drive recalculates amounts and setup creates one retry trigger',async()=>{
   const env=environment(),data=await payload();data.quote.result={total:1};post(env,data);
   const record=JSON.parse(env.files.find(file=>file.mime==='application/json').data);
   assert.equal(record.quote.result.total,4000000);
+  assert.equal(record.quote.client.whatsapp,'+595 981 123 456');
   env.context.configurar();env.context.configurar();assert.equal(env.triggers.length,1);
 });
 test('browser confirmation requires a Google origin and matching request identifiers',()=>{

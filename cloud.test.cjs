@@ -6,7 +6,7 @@ const {PDFDocument}=require('pdf-lib');
 const Pdf=require('./quote-pdf.js');
 const {validate}=require('./quote-validation.cjs');
 const logo=fs.readFileSync(path.join(__dirname,'assets/logo.png'));
-function fixture(){return {submissionId:'8b1c03da-dccf-41ea-bb2b-f75c96b5cc21',id:'NS-TEST1234',createdAt:'2026-10-29T15:00:00Z',client:{name:'María González',email:'demo@example.com',company:'Empresa de prueba'},event:{type:'Evento corporativo',date:'2026-12-15',guests:150,location:'Asunción, salón de prueba',name:'Evento de ejemplo',notes:'Detalles de prueba. '.repeat(25),photo:true,video:true,photoHours:5,videoHours:6,reels:3,extras:['vertical','drive','urgent','stories','raw','interviews'],products:['prints','enlargements','album','book','travel']}};}
+function fixture(){return {submissionId:'8b1c03da-dccf-41ea-bb2b-f75c96b5cc21',id:'NS-TEST1234',createdAt:'2026-10-29T15:00:00Z',client:{name:'María González',email:'demo@example.com',whatsapp:'+595 981 123 456',company:'Empresa de prueba'},event:{type:'Evento corporativo',date:'2026-12-15',guests:150,location:'Asunción, salón de prueba',name:'Evento de ejemplo',notes:'Detalles de prueba. '.repeat(25),photo:true,video:true,photoHours:5,videoHours:6,reels:3,extras:['vertical','drive','urgent','stories','raw','interviews'],products:['prints','enlargements','album','book','travel']}};}
 class Bucket{
   objects=new Map();
   revision=0;
@@ -34,6 +34,14 @@ test('server ignores supplied totals and rejects invalid selections',()=>{
   const input=fixture();input.result={total:1};assert.notEqual(validate(input).result.total,1);
   input.event.extras.push('made-up');assert.throws(()=>validate(input));
 });
+test('WhatsApp accepts international formatting, remains optional and rejects malformed numbers',()=>{
+  const input=fixture();
+  assert.equal(validate(input).client.whatsapp,'+595 981 123 456');
+  input.client.whatsapp='';assert.equal(validate(input).client.whatsapp,'');
+  input.client.whatsapp='llamame';assert.throws(()=>validate(input),/WhatsApp/);
+  input.client.whatsapp='123';assert.throws(()=>validate(input),/WhatsApp/);
+  input.client.whatsapp='+1234567890123456';assert.throws(()=>validate(input),/WhatsApp/);
+});
 test('cloud stores a private PDF and sends mail only to owner, without duplicates',async()=>{
   const {handle}=await import('./worker.mjs');const env=environment(),remote=providers();
   const response=await handle(request(),env,remote.fetch);assert.equal(response.status,200);assert.equal((await response.json()).notification,'sent');
@@ -41,6 +49,7 @@ test('cloud stores a private PDF and sends mail only to owner, without duplicate
   assert.equal([...env.QUOTES.objects.keys()].filter(key=>key.endsWith('.pdf')).length,1);
   assert.equal(remote.mail.length,1);assert.deepEqual(remote.mail[0].to,['robfranco97@gmail.com']);
   assert.ok(remote.mail[0].text.includes('Precio final APROXIMADO'));
+  assert.ok(remote.mail[0].text.includes('WhatsApp: +595 981 123 456'));
   assert.ok(!('cc' in remote.mail[0]));assert.ok(!('bcc' in remote.mail[0]));
   const changed=fixture();changed.client.name='Otra persona';assert.equal((await handle(request(changed),env,remote.fetch)).status,409);
 });

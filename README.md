@@ -5,6 +5,7 @@ Formulario estático con tarifario 2026 v4, PDF A4 de una página y conexión a 
 ## Estado actual
 
 - PDF descargable directamente, con nombre del cliente e identificador: `Presupuesto_Maria_Gonzalez_NS-12345678.pdf`.
+- WhatsApp del cliente en el formulario, vista previa, PDF y registro; también se incluye en el aviso al presupuestador. El número es opcional y admite formato internacional.
 - Google Drive preparado con la carpeta `14jqeIfEswbnZCXhsIL0akEd5hPsXGPdt`. Falta autorizar y publicar el proyecto de Apps Script.
 - Avisos con MailApp de Google, únicamente a **robfranco97@gmail.com**. No se ha enviado un correo real ni accedido a la cuenta de Google.
 - Mientras `appsScriptUrl` y `recaptchaSiteKey` de `cloud-config.js` estén vacíos, el PDF funciona y la interfaz avisa que la nube no está conectada.

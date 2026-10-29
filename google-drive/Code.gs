@@ -8,8 +8,8 @@ var Tariff=(function(){
     {max:Infinity,label:'Más de 400 invitados',prices:[4350000,5400000,6500000],extra:1100000}
   ];
   const extras = [
+    {id:'drive',name:'Cobertura en tiempo real (entrega de fotografías al instante durante el evento)',price:900000,requires:'photo'},
     {id:'vertical',name:'Video resumen vertical para redes',price:500000,requires:'video'},
-    {id:'drive',name:'Selección, edición y publicación de fotos en Drive durante el evento',price:900000,requires:'photo'},
     {id:'urgent',name:'Entrega prioritaria de selección (24 h)',price:400000,requires:'photo',excluded:true},
     {id:'stories',name:'Cobertura de Stories durante el evento',price:400000},
     {id:'raw',name:'Grabación vertical sin edición',price:400000},
@@ -68,8 +68,9 @@ function validateGoogleQuote_(payload){
   if(!/^NS-[A-Z0-9-]{8,40}$/.test(payload.id||''))fail('Número de presupuesto inválido.');
   if(!Number.isFinite(Date.parse(payload.createdAt)))fail('Fecha inválida.');
   const source=payload.client||{},event=payload.event||{};
-  const client={name:text(source.name,'nombre',100),email:text(source.email,'correo',254),company:text(source.company??'','empresa',100,false)};
+  const client={name:text(source.name,'nombre',100),email:text(source.email,'correo',254),whatsapp:text(source.whatsapp??'','WhatsApp',32,false),company:text(source.company??'','empresa',100,false)};
   if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(client.email))fail('Correo inválido.');
+  if(client.whatsapp&&(!/^\+?[\d\s().-]+$/.test(client.whatsapp)||client.whatsapp.replace(/\D/g,'').length<7||client.whatsapp.replace(/\D/g,'').length>15))fail('Campo inválido: WhatsApp. Usá entre 7 y 15 dígitos, con código de país.');
   if(!['Evento corporativo','Cumpleaños','Boda','XV años','Otro evento'].includes(event.type))fail('Tipo de evento inválido.');
   if(!/^\d{4}-\d{2}-\d{2}$/.test(event.date||'')||!Number.isFinite(Date.parse(event.date+'T12:00:00Z'))||new Date(event.date+'T12:00:00Z').toISOString().slice(0,10)!==event.date)fail('Fecha del evento inválida.');
   if(!Number.isInteger(event.guests)||event.guests<1||event.guests>1000000)fail('Invitados inválidos.');
@@ -134,6 +135,7 @@ function notify_(record,recordFile){
   var body=[
     'Hay un nuevo presupuesto de '+record.quote.client.name+'.',
     'Número: '+record.quote.id,
+    'WhatsApp: '+(record.quote.client.whatsapp||'No informado'),
     'Evento: '+record.quote.event.type+' · '+record.quote.event.date,
     Tariff.totalLabel(result)+': Gs. '+new Intl.NumberFormat('es-PY').format(result.total),
     result.pending?'Hay conceptos sin precio definido que no se incluyen en el importe mostrado.':'',

@@ -40,6 +40,7 @@
       paragraph('PROPUESTA INICIAL · TARIFARIO 2026',regular,8);
       paragraph(quote.event.name||quote.event.type,bold,size*2,ink,gap+3);
       paragraph([quote.client.name,quote.client.email,quote.client.company].filter(Boolean).join(' · '));
+      if(quote.client.whatsapp)paragraph('WhatsApp: '+quote.client.whatsapp);
       paragraph(`${quote.event.type} · ${quote.event.date} · ${quote.event.location} · ${quote.event.guests} invitados`);
       y+=gap;ops.push({kind:'rule',y});y+=gap+size;
       for(const row of rows){
